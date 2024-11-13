@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    command: bash -c "python manage.py makemigrations && python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=cricradio  # Ensure this matches POSTGRES_DB in the db service
+      - DATABASE_USER=postgres   # Should match POSTGRES_USER in the db service
+      - DATABASE_PASSWORD=root
+    depends_on:
+      - redis
+      - db
+
+  db:
+    image: postgres:latest
+    environment:
+      - POSTGRES_DB=cricradio
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=root
+    ports:
+      - "5433:5432"
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+
+  celery-worker:
+    build: .
+    command: celery -A cricradio worker -l info
+    volumes:
+      - .:/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - DATABASE_HOST=db  # Use db here instead of localhost
+      - DATABASE_PORT=5432
+      - DATABASE_NAME=cricradio
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=root
+    depends_on:
+      - redis
+      - db
+
+  celery-beat:
+    build: .
+    command: celery -A cricradio beat -l info
+    volumes:
+      - .:/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+      - db
