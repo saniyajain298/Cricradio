@@ -1,0 +1,1 @@
+MATCH_LIST_API_URL = 'https://crex.live/fixtures/match-list'
